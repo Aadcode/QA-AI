@@ -22,7 +22,7 @@ const Upload: React.FC = () => {
     setIsUploading(true); // Show loading indicator
 
     try {
-      const response = await axios.post("/api/v1/upload", formData, {
+      const response = await axios.post("https://qa-ai-ul8n.onrender.com/api/v1/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
