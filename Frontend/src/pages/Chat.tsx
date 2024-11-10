@@ -21,7 +21,7 @@ interface ChatProps {
 }
 
 const Chat: React.FC<ChatProps> = ({
-  serverUrl = "http://localhost:3000",
+  serverUrl = "https://qa-ai-ul8n.onrender.com",
   initialMessages = [],
   maxInputHeight = 200,
 }) => {
