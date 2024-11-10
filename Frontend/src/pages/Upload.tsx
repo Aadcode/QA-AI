@@ -37,17 +37,17 @@ const Upload: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <h1 className="text-xl font-bold mb-4">Hi, Welcome to QA-AI</h1>
-
-      <div className="flex flex-col gap-4 items-center">
+    <div className="flex flex-col justify-center items-center h-screen bg-black">
+      <h1 className="text-2xl text-white  font-bold mb-4">
+        Hi, Welcome to QA-AI
+      </h1>
+      <div className="flex flex-col gap-4 items-center text-white">
         <input
           className="p-5 outline-none border border-gray-300 rounded"
           type="file"
           name="pdf"
           onChange={handleFileChange}
         />
-
         {/* Show loading state */}
         {isUploading ? (
           <div className="mt-4 text-lg text-blue-500">Uploading...</div>
