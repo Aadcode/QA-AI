@@ -4,11 +4,13 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-  "dev": "tsc -b && nodemon dist/app.js --exec node",
-  "build": "tsc -b",
-  "start": "node dist/app.js"
-}
-,
+    "dev": "tsc -b && nodemon dist/app.js --exec node",
+    "build": "tsc -b &&  npx prisma migrate dev && npx prisma generate",
+    "start": "node dist/app.js"
+  },
+  "prisma": {
+    "schema": "src/prisma/schema.prisma"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
