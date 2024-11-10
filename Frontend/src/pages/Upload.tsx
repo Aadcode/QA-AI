@@ -1,5 +1,6 @@
 import React, { useState, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios"; // Import axios for making API calls
 
 const Upload: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -12,9 +13,15 @@ const Upload: React.FC = () => {
 
   const handleFileUpload = async () => {
     if (!file) return;
+    const formData = new FormData();
+    formData.append("pdf", file); // 'pdf' should match backend's expected field name
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      navigate("/Ask");
+      const response = await axios.post("/api/v1/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log(response.data);
+      navigate("/Ask"); // Redirect to chat page after successful upload
     } catch (error) {
       console.error("File upload failed", error);
     }

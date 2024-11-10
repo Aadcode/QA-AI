@@ -1,60 +1,81 @@
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
-import Pdf from "pdf-parse"
+import PDFParser from "pdf2json";
+import { PrismaClient } from "@prisma/client";
+import dotenv from "dotenv";
+import { getIO } from "../socket.js";
+
+dotenv.config();
+
+const prisma = new PrismaClient();
+
+interface PDFProcessedData {
+    fileName: string;
+    timestamp: string;
+    extractedText: string;
+    fileSize: number;
+}
+
 export const uploadFile = async (req: Request, res: Response): Promise<void> => {
     const uploadedFile = req.file;
-
     if (!uploadedFile) {
-        res.status(400).json({ error: "Please upload a file in PDF format" });
+        res.status(400).json({ error: "No file uploaded" });
         return;
     }
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (uploadedFile.size > MAX_FILE_SIZE) {
-        await cleanupFile(uploadedFile.path);
-        res.status(400).json({ error: "File size exceeds 10MB limit" });
-        return;
-    }
-    console.log(uploadedFile)
     try {
+        const pdfParser = new PDFParser();
+        const pdfParsingPromise = new Promise((resolve, reject) => {
+            pdfParser.on("pdfParser_dataReady", resolve);
+            pdfParser.on("pdfParser_dataError", reject);
+        });
 
-        const buff = fs.readFileSync(`public/PDFs/${uploadedFile.originalname}`);
-        console.log(buff)
+        const filePath = path.join("./public/files", uploadedFile.originalname);
+        const pdfBuffer = await fs.readFile(filePath);
+        pdfParser.parseBuffer(pdfBuffer);
 
-        // Use PDF-parse to extract text from the PDF buffer
-        const PDFData = await Pdf(buff)
-        console.log("Extracted text:", PDFData.text);  // Log the extracted text
+        const pdfData = await pdfParsingPromise;
+        const extractedText = (pdfData as any).Pages?.map((page: any) =>
+            page.Texts?.map((text: any) => decodeURIComponent(text.R?.[0]?.T || "")).join(" ")
+        ).join("\n");
 
-        const response = {
+        // Save document in the database
+        const document = await prisma.document.create({
+            data: {
+                filename: uploadedFile.originalname,
+                content: extractedText,
+                QAs: [] // Initialize empty QAs array
+            },
+        });
+
+        const processedData: PDFProcessedData = {
+            fileName: uploadedFile.originalname,
+            timestamp: new Date().toISOString(),
+            extractedText,
+            fileSize: uploadedFile.size,
+        };
+
+        // Emit processed data via WebSocket
+        const io = getIO();
+        io.emit('pdfProcessed', processedData);
+        console.log('PDF data emitted via WebSocket');
+
+        res.status(200).json({
             message: "File uploaded and processed successfully",
             file: {
                 originalName: uploadedFile.originalname,
                 mimeType: uploadedFile.mimetype,
                 size: uploadedFile.size,
-
             },
-            // extractedText: PDFData.text,  // Include extracted text in the response
-        };
-
-        res.status(200).json(response);
+            extractedText,
+        });
 
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        console.error("Error processing PDF file:", errorMessage);
-        res.status(500).json({ error: "Failed to process PDF file", details: errorMessage });
+        console.error("Error processing PDF:", error);
+        res.status(500).json({
+            error: "Failed to process PDF file",
+            details: error instanceof Error ? error.message : "Unknown error",
+        });
     }
 };
-
-/**
- * Helper function to safely delete uploaded files
- */
-async function cleanupFile(filePath: string): Promise<void> {
-    try {
-        const normalizedPath = path.resolve(filePath);  // Ensure absolute path for deletion
-        await fs.unlink(normalizedPath);
-        console.log("File cleaned up successfully:", normalizedPath);
-    } catch (error) {
-        console.error("Error cleaning up file:", error);
-    }
-}
